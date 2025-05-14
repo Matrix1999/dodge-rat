@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ChatGPT Chat with Profile & Emoji/Links</title>
+<link
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --bg-color: #fff;
+    --text-color: #000;
+    --bubble-user-bg: #007bff;
+    --bubble-user-color: #fff;
+    --bubble-bot-bg: #f0f0f0;
+    --bubble-bot-color: #000;
+    --input-bg: #f9f9f9;
+    --input-color: #000;
+    --border-color: rgba(0, 0, 0, 0.2);
+  }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  body.dark {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --bubble-user-bg: #0d6efd;
+    --bubble-user-color: #fff;
+    --bubble-bot-bg: #1e1e1e;
+    --bubble-bot-color: #e0e0e0;
+    --input-bg: #2c2c2c;
+    --input-color: #e0e0e0;
+    --border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .top-bar {
+    background-color: var(--bg-color);
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--text-color);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1001;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  #theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+    color: var(--text-color);
+    transition: color 0.3s;
+  }
+
+  #theme-toggle:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+
+  .profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 20px;
+  }
+
+  .profile-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.3s;
+  }
+
+  .profile-avatar:focus,
+  .profile-avatar:hover {
+    border-color: #007bff;
+    outline: none;
+  }
+
+  .profile-name {
+    font-size: 1em;
+    font-weight: normal;
+    color: var(--text-color);
+    cursor: pointer;
+  }
+
+  .profile-name:focus,
+  .profile-name:hover {
+    text-decoration: underline;
+    outline: none;
+  }
+
+  .chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin-top: 60px;
+    margin-bottom: 60px;
+    overflow: hidden;
+  }
+
+  .chat-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    scroll-behavior: smooth;
+  }
+
+  .chat-content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .chat-content::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+  }
+
+  .message {
+    margin: 10px 0;
+    display: flex;
+    align-items: flex-start;
+    max-width: 80%;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.3s forwards;
+    font-size: 1em;
+    line-height: 1.4;
+  }
+
+  @keyframes fadeInUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Bot messages on left */
+  .message.bot {
+    justify-content: flex-start;
+    align-self: flex-start;
+    margin-right: auto;
+    flex-direction: row; /* avatar left, bubble right */
+  }
+
+  /* User messages on right */
+  .message.user {
+    justify-content: flex-end;
+    align-self: flex-end;
+    margin-left: auto;
+    flex-direction: row-reverse; /* bubble left, avatar right */
+  }
+
+  .bubble {
+    padding: 10px 15px;
+    border-radius: 20px;
+    word-wrap: break-word;
+    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+    max-width: calc(100% - 70px);
+    position: relative;
+    white-space: pre-wrap;
+  }
+
+  .message.user .bubble {
+    background-color: var(--bubble-user-bg);
+    color: var(--bubble-user-color);
+  }
+
+  .message.bot .bubble {
+    background-color: var(--bubble-bot-bg);
+    color: var(--bubble-bot-color);
+  }
+
+  .avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin: 0 10px;
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+
+  .timestamp {
+    font-size: 0.75em;
+    color: gray;
+    margin-top: 4px;
+    user-select: none;
+  }
+
+  .username-label {
+    font-weight: 600;
+    font-size: 0.85em;
+    margin-bottom: 3px;
+    color: gray;
+    user-select: none;
+  }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 15px;
+    border-radius: 20px;
+    max-width: 40%;
+    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+    background-color: var(--bubble-bot-bg);
+  }
+
+  .dots {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-color);
+    border-radius: 50%;
+    animation: blink 1.4s infinite;
+  }
+
+  .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes blink {
+    0%,
+    80%,
+    100% {
+      opacity: 0;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--bg-color);
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0px -2px 2px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transition: background-color 0.3s;
+    z-index: 1000;
+  }
+
+  .bottom-bar input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 1em;
+    background-color: var(--input-bg);
+    color: var(--input-color);
+    margin-right: 10px;
+    outline: none;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+  }
+
+  .bottom-bar input::placeholder {
+    color: #aaa;
+  }
+
+  .bottom-bar input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 3px #007bff;
+  }
+
+  .bottom-bar button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    font-size: 1em;
+    background-color: var(--bubble-user-bg);
+    color: var(--bubble-user-color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .bottom-bar button:hover:enabled {
+    background-color: #0056b3;
+  }
+
+  .bottom-bar button:active:enabled {
+    background-color: #004494;
+  }
+
+  .bottom-bar button:disabled {
+    background-color: #999;
+    cursor: not-allowed;
+  }
+
+  pre.code-block {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 1em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 100%;
+    position: relative;
+  }
+
+  pre.code-block code {
+    font-family: monospace;
+  }
+
+  .copy-button,
+  .copy-button-inline {
+    background-color: transparent;
+    color: #007bff;
+    border: none;
+    border-radius: 5px;
+    padding: 0;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 18px;
+    vertical-align: middle;
+    transition: color 0.3s;
+  }
+
+  .copy-button:hover,
+  .copy-button-inline:hover {
+    color: #0056b3;
+  }
+</style>
+</head>
+<body>
+  <header class="top-bar" role="banner">
+    <div class="profile" tabindex="0" aria-label="User profile settings">
+      <img
+        src="https://randomuser.me/api/portraits/women/68.jpg"
+        alt="User avatar"
+        id="profile-avatar"
+        class="profile-avatar"
+        tabindex="0"
+        aria-label="User avatar, click to change"
+        title="Click to change avatar"
+      />
+      <span
+        id="profile-name"
+        class="profile-name"
+        contenteditable="true"
+        role="textbox"
+        aria-label="Edit your display name"
+        spellcheck="false"
+        tabindex="0"
+        title="Click to edit your display name"
+      >User</span>
+    </div>
+
+    <div>
+      <button
+        id="clear-chat-btn"
+        title="Clear chat history"
+        aria-label="Clear chat history"
+      >
+        <i class="fas fa-trash-alt"></i>
+      </button>
+      <button
+        id="theme-toggle"
+        aria-label="Toggle dark mode"
+        title="Toggle dark mode"
+        aria-pressed="false"
+      >
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="chat-container">
+    <section
+      id="chat-content"
+      class="chat-content"
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      tabindex="0"
+    >
+      <!-- Messages will appear here -->
+    </section>
+  </main>
+
+  <form
+    id="chat-form"
+    class="bottom-bar"
+    role="search"
+    aria-label="Chat input form"
+  >
+    <input
+      id="user-input"
+      type="text"
+      placeholder="Type your message..."
+      autocomplete="off"
+      aria-label="Type your message"
+      required
+      maxlength="500"
+    />
+    <button type="submit" aria-label="Send message">Send</button>
+  </form>
+
+  <script>
+    const chatContent = document.getElementById("chat-content");
+    const chatForm = document.getElementById("chat-form");
+    const userInput = document.getElementById("user-input");
+    const themeToggle = document.getElementById("theme-toggle");
+    const profileAvatar = document.getElementById("profile-avatar");
+    const profileName = document.getElementById("profile-name");
+    const clearChatBtn = document.getElementById("clear-chat-btn");
+
+    const defaultUserAvatar = "https://randomuser.me/api/portraits/women/68.jpg";
+    const chatGPTLogo = "https://i.ibb.co/JxcxBzh/67373267.jpg";
+
+    // Load profile from localStorage or defaults
+    function loadProfile() {
+      const profile = JSON.parse(localStorage.getItem("chatProfile")) || {};
+      profileAvatar.src = profile.avatar || defaultUserAvatar;
+      profileName.textContent = profile.name || "User";
+    }
+
+    // Save profile to localStorage
+    function saveProfile() {
+      const profile = {
+        avatar: profileAvatar.src,
+        name: profileName.textContent.trim() || "User",
+      };
+      localStorage.setItem("chatProfile", JSON.stringify(profile));
+    }
+
+    // Load chat history from localStorage
+    function loadChatHistory() {
+      const history = localStorage.getItem("chatHistory");
+      if (history) {
+        const messages = JSON.parse(history);
+        messages.forEach(({ text, fromUser, timestamp }) => {
+          chatContent.appendChild(
+            createMessageElement(text, fromUser, false, new Date(timestamp))
+          );
+        });
+        scrollToBottom();
+      }
+    }
+
+    // Save chat history to localStorage
+    function saveChatHistory() {
+      const messages = [];
+      chatContent.querySelectorAll(".message").forEach((msgElem) => {
+        const bubble = msgElem.querySelector(".bubble");
+        if (!bubble) return;
+        const text = bubble.innerText || bubble.textContent;
+        const fromUser = msgElem.classList.contains("user");
+        const timestampElem = bubble.querySelector(".timestamp");
+        const timestamp = timestampElem
+          ? new Date(timestampElem.getAttribute("data-timestamp"))
+          : new Date();
+        messages.push({ text, fromUser, timestamp: timestamp.toISOString() });
+      });
+      localStorage.setItem("chatHistory", JSON.stringify(messages));
+    }
+
+    // Escape HTML characters
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Parse markdown-like syntax with links and emojis
+    function parseMarkdown(text) {
+      // Convert URLs in text to clickable links
+      text = text.replace(
+        /((https?:\/\/|www\.)[^\s<]+)/gi,
+        (match) => {
+          let url = match;
+          if (!url.match(/^https?:\/\//)) {
+            url = 'http://' + url;
+          }
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        }
+      );
+
+      // Markdown links [text](url)
+      text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, p1, p2) => {
+        return `<a href="${p2}" target="_blank" rel="noopener noreferrer">${p1}</a>`;
+      });
+
+      // Code blocks
+      text = text.replace(/``````/g, (match, code) => {
+        return `
+          <pre class="code-block" tabindex="0">
+            <code>${escapeHtml(code)}</code>
+            <button class="copy-button" data-code="${encodeURIComponent(code)}" aria-label="Copy code to clipboard">
+              <i class="fa fa-copy"></i>
+            </button>
+          </pre>`;
+      });
+
+      // Inline code
+      text = text.replace(/`([^`]+)`/g, (match, code) => {
+        return `<code>${escapeHtml(code)}</code>
+          <button class="copy-button-inline" data-code="${encodeURIComponent(code)}" aria-label="Copy inline code to clipboard">
+            <i class="fa fa-copy"></i>
+          </button>`;
+      });
+
+      // Bold and italic
+      text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+      // Newlines to <br>
+      text = text.replace(/\n/g, "<br/>");
+
+      return text;
+    }
+
+    // Copy text to clipboard
+    function copyToClipboard(text, button) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          showCopySuccess(button);
+        }).catch(() => fallbackCopy(text, button));
+      } else {
+        fallbackCopy(text, button);
+      }
+    }
+
+    function fallbackCopy(text, button) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        showCopySuccess(button);
+      } catch {
+        alert("Copy failed. Please copy manually.");
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function showCopySuccess(button) {
+      const icon = button.querySelector("i");
+      icon.classList.remove("fa-copy");
+      icon.classList.add("fa-check");
+      setTimeout(() => {
+        icon.classList.remove("fa-check");
+        icon.classList.add("fa-copy");
+      }, 1000);
+    }
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest(".copy-button, .copy-button-inline");
+      if (button) {
+        const code = decodeURIComponent(button.getAttribute("data-code"));
+        copyToClipboard(code, button);
+      }
+    });
+
+    // Create message element
+    function createMessageElement(message, fromUser, isLoading = false, timestamp = new Date()) {
+      const messageWrapper = document.createElement("div");
+      messageWrapper.classList.add("message", fromUser ? "user" : "bot");
+
+      const avatar = document.createElement("img");
+      avatar.src = fromUser ? profileAvatar.src : chatGPTLogo;
+      avatar.alt = fromUser ? profileName.textContent + " avatar" : "ChatGPT avatar";
+      avatar.classList.add("avatar");
+
+      const bubble = document.createElement("div");
+      if (isLoading) {
+        bubble.classList.add("loading");
+        bubble.setAttribute("aria-live", "polite");
+        bubble.innerHTML = `<div class="dots" aria-label="Typing indicator">
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                            </div>`;
+      } else {
+        bubble.classList.add("bubble");
+
+        const usernameLabel = document.createElement("div");
+        usernameLabel.classList.add("username-label");
+        usernameLabel.textContent = fromUser ? profileName.textContent : "ChatGPT";
+
+        bubble.innerHTML = parseMarkdown(message);
+        bubble.prepend(usernameLabel);
+
+        const timeElem = document.createElement("div");
+        timeElem.classList.add("timestamp");
+        timeElem.setAttribute("data-timestamp", timestamp.toISOString());
+        timeElem.textContent = timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        bubble.appendChild(timeElem);
+      }
+
+      if (fromUser) {
+        messageWrapper.appendChild(bubble);
+        messageWrapper.appendChild(avatar);
+      } else {
+        messageWrapper.appendChild(avatar);
+        messageWrapper.appendChild(bubble);
+      }
+
+      return messageWrapper;
+    }
+
+    function scrollToBottom() {
+      chatContent.scrollTo({ top: chatContent.scrollHeight, behavior: "smooth" });
+    }
+
+    // Simulate ChatGPT response with emojis and links sometimes
+    async function fetchResponse(userMessage) {
+      try {
+        // Call your real API here:
+        const response = await fetch(
+          "https://backend.buildpicoapps.com/aero/run/llm-api?pk=v1-Z0FBQUFBQm5IZkJDMlNyYUVUTjIyZVN3UWFNX3BFTU85SWpCM2NUMUk3T2dxejhLSzBhNWNMMXNzZlp3c09BSTR6YW1Sc1BmdGNTVk1GY0liT1RoWDZZX1lNZlZ0Z1dqd3c9PQ==",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: userMessage }),
+          }
+        );
+
+        if (!response.ok) throw new Error("API error");
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+          // Randomly add emoji or a link sometimes for fun
+          let text = data.text;
+
+          if (Math.random() < 0.3) {
+            const emojis = ["😊", "👍", "🎉", "🚀", "✨"];
+            const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+            text += " " + emoji;
+          }
+
+          if (Math.random() < 0.2) {
+            text +=
+              ' For more info, visit <a href="https://openai.com" target="_blank" rel="noopener noreferrer">OpenAI</a>.';
+          }
+
+          return text;
+        } else {
+          throw new Error("API returned error");
+        }
+      } catch (e) {
+        console.error(e);
+        return "Sorry, something went wrong. Please try again later.";
+      }
+    }
+
+    function setSending(isSending) {
+      chatForm.querySelector("button").disabled = isSending;
+      userInput.disabled = isSending;
+    }
+
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const userMessage = userInput.value.trim();
+      if (!userMessage) return;
+
+      chatContent.appendChild(createMessageElement(userMessage, true));
+      scrollToBottom();
+
+      userInput.value = "";
+      userInput.focus();
+
+      const loadingMsg = createMessageElement("", false, true);
+      chatContent.appendChild(loadingMsg);
+      scrollToBottom();
+
+      setSending(true);
+
+      const botResponse = await fetchResponse(userMessage);
+
+      chatContent.removeChild(loadingMsg);
+      chatContent.appendChild(createMessageElement(botResponse, false));
+      scrollToBottom();
+
+      setSending(false);
+      saveChatHistory();
+    });
+
+    window.addEventListener("load", () => {
+      loadProfile();
+      loadChatHistory();
+      userInput.focus();
+
+      if (!localStorage.getItem("chatHistory")) {
+        setTimeout(() => {
+          const welcomeMessage = createMessageElement("How can I help you today? 😊", false);
+          chatContent.appendChild(welcomeMessage);
+          scrollToBottom();
+          saveChatHistory();
+        }, 500);
+      }
+    });
+
+    themeToggle.addEventListener("click", () => {
+      const isDark = document.body.classList.toggle("dark");
+      themeToggle.setAttribute("aria-pressed", isDark);
+      const icon = themeToggle.querySelector("i");
+      if (isDark) {
+        icon.classList.replace("fa-moon", "fa-sun");
+      } else {
+        icon.classList.replace("fa-sun", "fa-moon");
+      }
+    });
+
+    userInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.requestSubmit();
+      }
+    });
+
+    profileAvatar.addEventListener("click", () => {
+      const url = prompt("Enter a URL for your avatar image:", profileAvatar.src);
+      if (url && url.trim()) {
+        profileAvatar.src = url.trim();
+        saveProfile();
+      }
+    });
+
+    profileName.addEventListener("blur", () => {
+      if (!profileName.textContent.trim()) profileName.textContent = "User";
+      saveProfile();
+      updateUsernames();
+    });
+
+    profileName.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        profileName.blur();
+      }
+    });
+
+    function updateUsernames() {
+      document.querySelectorAll(".message.user .username-label").forEach((el) => {
+        el.textContent = profileName.textContent.trim() || "User";
+      });
+    }
+
+    clearChatBtn.addEventListener("click", () => {
+      if (confirm("Are you sure you want to clear the chat history?")) {
+        localStorage.removeItem("chatHistory");
+        chatContent.innerHTML = "";
+      }
+    });
+
+    chatContent.addEventListener("scroll", () => {
+      // You can add scroll-to-bottom button logic here if needed
+    });
+
+    function saveChatHistory() {
+      const messages = [];
+      chatContent.querySelectorAll(".message").forEach((msgElem) => {
+        const bubble = msgElem.querySelector(".bubble");
+        if (!bubble) return;
+        const text = bubble.innerText || bubble.textContent;
+        const fromUser = msgElem.classList.contains("user");
+        const timestampElem = bubble.querySelector(".timestamp");
+        const timestamp = timestampElem
+          ? new Date(timestampElem.getAttribute("data-timestamp"))
+          : new Date();
+        messages.push({ text, fromUser, timestamp: timestamp.toISOString() });
+      });
+      localStorage.setItem("chatHistory", JSON.stringify(messages));
+    }
+
+    function loadChatHistory() {
+      const history = localStorage.getItem("chatHistory");
+      if (history) {
+        const messages = JSON.parse(history);
+        messages.forEach(({ text, fromUser, timestamp }) => {
+          chatContent.appendChild(
+            createMessageElement(text, fromUser, false, new Date(timestamp))
+          );
+        });
+        scrollToBottom();
+      }
+    }
+
+    function loadProfile() {
+      const profile = JSON.parse(localStorage.getItem("chatProfile")) || {};
+      profileAvatar.src = profile.avatar || defaultUserAvatar;
+      profileName.textContent = profile.name || "User";
+    }
+
+    function saveProfile() {
+      const profile = {
+        avatar: profileAvatar.src,
+        name: profileName.textContent.trim() || "User",
+      };
+      localStorage.setItem("chatProfile", JSON.stringify(profile));
+    }
+  </script>
+</body>
+</html>
